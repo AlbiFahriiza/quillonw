@@ -77,45 +77,9 @@ function applyFontCycle(element: HTMLElement, index: number) {
   element.style.fontStyle = font.style;
 }
 
-// Each swap rides a letter-by-letter ripple: fade out, swap the family while
-// the letters are hidden, then stagger the new family back in. Exit, enter
-// and the repeat delay add up to about one second per family.
-function startFontCycle(
-  cycling: HTMLElement,
-  letters: HTMLElement[],
-): () => void {
-  const state = { index: 0 };
-  const cycle = gsap.timeline({ delay: 1.6, repeat: -1, repeatDelay: 0.2 });
-
-  cycle
-    .to(letters, {
-      autoAlpha: 0,
-      yPercent: -30,
-      duration: 0.14,
-      stagger: 0.01,
-      ease: "power1.in",
-    })
-    .call(() => {
-      state.index = (state.index + 1) % FONT_CYCLE.length;
-      applyFontCycle(cycling, state.index);
-    })
-    .fromTo(
-      letters,
-      { autoAlpha: 0, yPercent: 40 },
-      {
-        autoAlpha: 1,
-        yPercent: 0,
-        duration: 0.3,
-        stagger: 0.028,
-        ease: "back.out(1.8)",
-        immediateRender: false,
-      },
-    );
-
-  return () => cycle.kill();
-}
-
-function startReducedMotionCycle(cycling: HTMLElement): () => void {
+// Swaps the family instantly, no fade: the sudden change of face is the
+// whole effect.
+function startFontCycle(cycling: HTMLElement): () => void {
   let index = 0;
   const timer = window.setInterval(() => {
     index = (index + 1) % FONT_CYCLE.length;
@@ -135,9 +99,7 @@ function ComingSoonWord({ word, offset }: { word: string; offset: number }) {
             className="inline-block"
             style={{ transform: `rotate(${play.rotate}deg) translateY(${play.y}%)` }}
           >
-            <span data-cs-letter className="inline-block">
-              {letter}
-            </span>
+            {letter}
           </span>
         );
       })}
@@ -192,10 +154,6 @@ export function Hero() {
     () => {
       const cycling = comingSoonRef.current;
       if (!cycling) return;
-      const letters = gsap.utils.toArray<HTMLElement>(
-        "[data-cs-letter]",
-        cycling,
-      );
 
       gsap
         .matchMedia()
@@ -207,10 +165,10 @@ export function Hero() {
             ease: "none",
             repeat: -1,
           });
-          return startFontCycle(cycling, letters);
+          return startFontCycle(cycling);
         })
         .add("(prefers-reduced-motion: reduce)", () =>
-          startReducedMotionCycle(cycling),
+          startFontCycle(cycling),
         );
     },
     { scope: heroRef },
