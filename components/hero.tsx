@@ -10,16 +10,33 @@ import {
   TealDiscIcon,
 } from "@/components/icons";
 
-// Sans -> Serif -> Monospace -> Display, cycled every second.
-const COMING_SOON_FONTS = [
-  "var(--ff-grotesk)",
-  "var(--ff-playfair)",
-  "var(--ff-spacemono)",
-  "var(--ff-bungee)",
+// Sans -> Serif -> Monospace -> Display, one family per second. Playfair is
+// loaded italic-only and Bungee ships in 400 alone, so every entry carries the
+// weight and style that actually exist for that family.
+const FONT_CYCLE = [
+  { family: "var(--ff-grotesk)", weight: "700", style: "normal" },
+  { family: "var(--ff-playfair)", weight: "700", style: "italic" },
+  { family: "var(--ff-spacemono)", weight: "700", style: "normal" },
+  { family: "var(--ff-bungee)", weight: "400", style: "normal" },
 ] as const;
 
 const FONT_CYCLE_MS = 1000;
-const FONT_FADE_SECONDS = 0.15;
+
+const WORDS = ["COMING", "SOON"];
+
+// Static tilt and lift per letter so the big line reads hand-set, not typed.
+const LETTER_PLAY = [
+  { rotate: -5, y: -6 },
+  { rotate: 4, y: 5 },
+  { rotate: -3, y: -3 },
+  { rotate: 5, y: 6 },
+  { rotate: -4, y: -5 },
+  { rotate: 3, y: 3 },
+  { rotate: -5, y: -6 },
+  { rotate: 4, y: 5 },
+  { rotate: -3, y: -4 },
+  { rotate: 5, y: 6 },
+] as const;
 
 const FLOAT_TWEENS = [
   { selector: '[data-float="sparkle"]', vars: { y: -14, rotate: 14, duration: 2.6, delay: 1.4 } },
@@ -53,49 +70,79 @@ function playEntrance() {
   }
 }
 
-function crossfadeToNextFont(element: HTMLElement, state: { index: number }) {
-  gsap.to(element, {
-    autoAlpha: 0,
-    duration: FONT_FADE_SECONDS,
-    ease: "power1.in",
-    onComplete: () => {
-      state.index = (state.index + 1) % COMING_SOON_FONTS.length;
-      element.style.fontFamily = COMING_SOON_FONTS[state.index];
-      gsap.to(element, {
-        autoAlpha: 1,
-        duration: FONT_FADE_SECONDS,
-        ease: "power1.out",
-      });
-    },
-  });
+function applyFontCycle(element: HTMLElement, index: number) {
+  const font = FONT_CYCLE[index];
+  element.style.fontFamily = font.family;
+  element.style.fontWeight = font.weight;
+  element.style.fontStyle = font.style;
 }
 
-// The family starts rotating once the entrance has settled, so the crossfade
-// never fights the hero animation on the same wrapper.
-function startFontCycle(element: HTMLElement): () => void {
+// Each swap rides a letter-by-letter ripple: fade out, swap the family while
+// the letters are hidden, then stagger the new family back in. Exit, enter
+// and the repeat delay add up to about one second per family.
+function startFontCycle(
+  cycling: HTMLElement,
+  letters: HTMLElement[],
+): () => void {
   const state = { index: 0 };
-  let cycleTimer: number | undefined;
+  const cycle = gsap.timeline({ delay: 1.6, repeat: -1, repeatDelay: 0.2 });
 
-  const delayedStart = gsap.delayedCall(1.6, () => {
-    cycleTimer = window.setInterval(
-      () => crossfadeToNextFont(element, state),
-      FONT_CYCLE_MS,
+  cycle
+    .to(letters, {
+      autoAlpha: 0,
+      yPercent: -30,
+      duration: 0.14,
+      stagger: 0.01,
+      ease: "power1.in",
+    })
+    .call(() => {
+      state.index = (state.index + 1) % FONT_CYCLE.length;
+      applyFontCycle(cycling, state.index);
+    })
+    .fromTo(
+      letters,
+      { autoAlpha: 0, yPercent: 40 },
+      {
+        autoAlpha: 1,
+        yPercent: 0,
+        duration: 0.3,
+        stagger: 0.028,
+        ease: "back.out(1.8)",
+        immediateRender: false,
+      },
     );
-  });
 
-  return () => {
-    delayedStart.kill();
-    window.clearInterval(cycleTimer);
-  };
+  return () => cycle.kill();
 }
 
-function startReducedMotionCycle(element: HTMLElement): () => void {
-  let fontIndex = 0;
+function startReducedMotionCycle(cycling: HTMLElement): () => void {
+  let index = 0;
   const timer = window.setInterval(() => {
-    fontIndex = (fontIndex + 1) % COMING_SOON_FONTS.length;
-    element.style.fontFamily = COMING_SOON_FONTS[fontIndex];
+    index = (index + 1) % FONT_CYCLE.length;
+    applyFontCycle(cycling, index);
   }, FONT_CYCLE_MS);
   return () => window.clearInterval(timer);
+}
+
+function ComingSoonWord({ word, offset }: { word: string; offset: number }) {
+  return (
+    <span className="flex items-center gap-x-[0.06em]">
+      {word.split("").map((letter, index) => {
+        const play = LETTER_PLAY[(offset + index) % LETTER_PLAY.length];
+        return (
+          <span
+            key={`${letter}-${index}`}
+            className="inline-block"
+            style={{ transform: `rotate(${play.rotate}deg) translateY(${play.y}%)` }}
+          >
+            <span data-cs-letter className="inline-block">
+              {letter}
+            </span>
+          </span>
+        );
+      })}
+    </span>
+  );
 }
 
 function HeroShapes() {
@@ -143,17 +190,27 @@ export function Hero() {
 
   useGSAP(
     () => {
-      const comingSoon = comingSoonRef.current;
-      if (!comingSoon) return;
+      const cycling = comingSoonRef.current;
+      if (!cycling) return;
+      const letters = gsap.utils.toArray<HTMLElement>(
+        "[data-cs-letter]",
+        cycling,
+      );
 
       gsap
         .matchMedia()
         .add("(prefers-reduced-motion: no-preference)", () => {
           playEntrance();
-          return startFontCycle(comingSoon);
+          gsap.to("[data-cs-star]", {
+            rotation: "+=360",
+            duration: 16,
+            ease: "none",
+            repeat: -1,
+          });
+          return startFontCycle(cycling, letters);
         })
         .add("(prefers-reduced-motion: reduce)", () =>
-          startReducedMotionCycle(comingSoon),
+          startReducedMotionCycle(cycling),
         );
     },
     { scope: heroRef },
@@ -181,16 +238,28 @@ export function Hero() {
         Code the <span className="marker-highlight">frame.</span>
       </h1>
 
+      {/* Fixed height in em keeps the layout steady while the family swaps. */}
       <p
         data-hero="coming-soon"
-        className="mt-10 flex h-12 items-center justify-center"
+        className="mt-12 flex h-[1.4em] items-center justify-center text-[clamp(1.5rem,9vw,5.25rem)]"
       >
+        <span className="sr-only">Coming soon</span>
         <span
           ref={comingSoonRef}
-          className="pl-[0.35em] text-lg font-bold uppercase tracking-[0.35em] text-tomato md:text-xl"
-          style={{ fontFamily: COMING_SOON_FONTS[0] }}
+          aria-hidden="true"
+          className="flex items-center gap-x-[0.35em] whitespace-nowrap leading-none text-tomato"
+          style={{
+            fontFamily: FONT_CYCLE[0].family,
+            fontWeight: FONT_CYCLE[0].weight,
+            fontStyle: FONT_CYCLE[0].style,
+          }}
         >
-          Coming soon
+          <ComingSoonWord word={WORDS[0]} offset={0} />
+          <ComingSoonWord word={WORDS[1]} offset={WORDS[0].length} />
+          <StarBurstIcon
+            data-cs-star
+            className="h-[0.5em] w-[0.5em] shrink-0 -rotate-12 text-mustard"
+          />
         </span>
       </p>
 
