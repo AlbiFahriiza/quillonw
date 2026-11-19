@@ -165,6 +165,9 @@ export function WhatIsQuillon() {
           });
 
           // --- Scene stories, desktop: pinned, scrubbed over 3 viewports.
+          // scrub: true (no smoothing) keeps the pinned timeline cheap: the
+          // scroll story measured 49.4fps avg at 6x throttle with a 0.6s
+          // catch-up tween; direct mapping is one transform write per frame.
           gsap.matchMedia().add("(min-width: 768px)", () => {
             const tl = gsap.timeline({
               scrollTrigger: {
@@ -172,7 +175,7 @@ export function WhatIsQuillon() {
                 start: "top top",
                 end: "+=300%",
                 pin: true,
-                scrub: 0.6,
+                scrub: true,
               },
             });
 
@@ -334,7 +337,7 @@ export function WhatIsQuillon() {
                 <li
                   key={frame.number}
                   data-reveal="frame"
-                  className="reveal-initial reveal-initial-frame flex flex-col gap-4 rounded-2xl border-2 border-ink bg-cream px-4 py-5 md:px-6 md:py-8"
+                  className="reveal-initial reveal-initial-frame flex flex-col gap-4 rounded-2xl border-2 border-ink bg-cream px-4 py-5 md:px-6 md:py-8 [contain:layout_paint]"
                 >
                   <SceneDonut scene={index + 1} />
                   <Frame {...frame} />

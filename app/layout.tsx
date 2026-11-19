@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, Space_Mono } from "next/font/google";
-import { SITE_URL, asset } from "@/lib/site";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -47,7 +47,9 @@ export const metadata: Metadata = {
     locale: "en_US",
     images: [
       {
-        url: asset("/og-image.png"),
+        // Root-relative metadata URLs get the basePath prepended by Next
+        // itself; routing through asset() here would double the prefix.
+        url: "/og-image.png",
         width: 1200,
         height: 630,
         alt: "Quillon — Code the frame. Coming soon.",
@@ -59,7 +61,7 @@ export const metadata: Metadata = {
     title,
     description:
       "A programmable video studio — where code becomes cinema. Coming soon.",
-    images: [asset("/og-image.png")],
+    images: ["/og-image.png"],
   },
   robots: { index: true, follow: true },
 };
