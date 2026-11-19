@@ -4,13 +4,14 @@
   --color-cream: #fff6e5;
   --color-ink: #1b1b1b;
   --color-tomato: #ff5a4e;
-  --color-tomato-ink: #e84334;
   --color-mustard: #ffc93c;
   --color-teal: #2ec4b6;
 
   --font-sans: var(--ff-inter), ui-sans-serif, system-ui, sans-serif;
   --font-grotesk: var(--ff-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--ff-playfair), ui-serif, Georgia, serif;
   --font-mono: var(--ff-spacemono), ui-monospace, "Courier New", monospace;
+  --font-display: var(--ff-bungee), var(--ff-grotesk), sans-serif;
 }
 
 @utility shadow-cartoon-sm {
@@ -36,11 +37,6 @@
     outline-offset: 3px;
     border-radius: 2px;
   }
-
-  /* The footer sits on ink, where an ink outline is invisible. */
-  footer :focus-visible {
-    outline-color: var(--color-cream);
-  }
 }
 
 @layer components {
@@ -54,35 +50,5 @@
     background-position: 0 100%;
     background-size: 0.9em 0.3em;
     padding-bottom: 0.16em;
-  }
-
-  /* The logo mark advances one sprocket on hover; hover is user-initiated,
-     so this stays on under reduced motion but is skipped entirely there. */
-  .mark-sprockets,
-  .mark-arrow {
-    transition: transform 300ms ease-out;
-  }
-
-  .mark-box {
-    transition: transform 200ms ease-out;
-  }
-
-  .group:hover .mark-box {
-    transform: rotate(-6deg);
-  }
-
-  .group:hover .mark-sprockets {
-    transform: translateX(3.5px);
-  }
-
-  .group:hover .mark-arrow {
-    transform: translateX(1.5px);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .group:hover .mark-sprockets,
-    .group:hover .mark-arrow {
-      transform: none;
-    }
   }
 }

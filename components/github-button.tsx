@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import gsap from "gsap";
-import { StarBurstIcon } from "@/components/icons";
+import { GitHubMarkIcon, StarBurstIcon } from "@/components/icons";
 
 const NOTICE = "We are building the tools, please wait.";
 const TOAST_HOLD_SECONDS = 3.2;
@@ -80,21 +80,19 @@ export function GitHubButton({
 
   const tone =
     variant === "onInk"
-      ? "border-cream bg-ink text-cream hover:bg-tomato hover:text-ink"
-      : "border-ink bg-cream text-ink hover:bg-tomato hover:text-ink";
+      ? "border-cream bg-ink text-cream hover:bg-tomato hover:text-cream"
+      : "border-ink bg-cream text-ink hover:bg-tomato hover:text-cream";
 
   return (
     <>
       <button
         type="button"
         onClick={notify}
-        aria-label="Coming soon"
+        aria-label="Notify me"
         className={`inline-flex h-11 cursor-pointer items-center gap-2.5 rounded-full border-2 px-5 font-grotesk text-sm font-bold transition-[background-color,color,translate,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-cartoon-sm focus-visible:-translate-y-0.5 active:translate-y-0 ${tone} ${className}`}
       >
-        <StarBurstIcon className="h-5 w-5 shrink-0" />
-        <span className="whitespace-nowrap max-[350px]:hidden">
-          Coming soon
-        </span>
+        <GitHubMarkIcon className="h-5 w-5 shrink-0" />
+        <span className="max-[420px]:hidden">Notify me</span>
       </button>
       {mounted &&
         createPortal(

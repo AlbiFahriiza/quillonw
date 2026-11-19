@@ -10,13 +10,14 @@ import {
   TealDiscIcon,
 } from "@/components/icons";
 
-// Sans -> monospace -> sans at a lighter weight, one family per second. Three
-// voices read as clearly different at display size; Grotesk ships 400 and 700,
-// Space Mono 700.
+// Sans -> Serif -> Monospace -> Display, one family per second. Playfair is
+// loaded italic-only and Bungee ships in 400 alone, so every entry carries the
+// weight and style that actually exist for that family.
 const FONT_CYCLE = [
   { family: "var(--ff-grotesk)", weight: "700", style: "normal" },
+  { family: "var(--ff-playfair)", weight: "700", style: "italic" },
   { family: "var(--ff-spacemono)", weight: "700", style: "normal" },
-  { family: "var(--ff-grotesk)", weight: "400", style: "normal" },
+  { family: "var(--ff-bungee)", weight: "400", style: "normal" },
 ] as const;
 
 const FONT_CYCLE_MS = 1000;
@@ -50,8 +51,7 @@ function playEntrance() {
   });
   entrance
     .from('[data-hero="wordmark"]', { y: 42, autoAlpha: 0 })
-    // The headline is the LCP element: move it, never hide it.
-    .from('[data-hero="headline"]', { y: 52 }, "-=0.6")
+    .from('[data-hero="headline"]', { y: 52, autoAlpha: 0 }, "-=0.6")
     .from('[data-hero="coming-soon"]', { y: 34, autoAlpha: 0 }, "-=0.6")
     .from(
       '[data-hero="shape"]',
@@ -205,7 +205,7 @@ export function Hero() {
         <span
           ref={comingSoonRef}
           aria-hidden="true"
-          className="flex items-center gap-x-[0.35em] whitespace-nowrap leading-none text-tomato-ink"
+          className="flex items-center gap-x-[0.35em] whitespace-nowrap leading-none text-tomato"
           style={{
             fontFamily: FONT_CYCLE[0].family,
             fontWeight: FONT_CYCLE[0].weight,
@@ -221,13 +221,16 @@ export function Hero() {
         </span>
       </p>
 
-      {/* Preloads the faces that only appear once the cycle reaches them. */}
+      {/* Preloads the three families that only appear once the cycle reaches them. */}
       <span
         aria-hidden="true"
         className="pointer-events-none absolute select-none opacity-0"
       >
+        <span style={{ fontFamily: "var(--ff-playfair)" }} className="italic">
+          a
+        </span>
         <span style={{ fontFamily: "var(--ff-spacemono)" }}>a</span>
-        <span style={{ fontFamily: "var(--ff-grotesk)", fontWeight: 400 }}>a</span>
+        <span style={{ fontFamily: "var(--ff-bungee)" }}>a</span>
       </span>
     </section>
   );

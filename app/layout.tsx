@@ -1,5 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Space_Grotesk, Space_Mono } from "next/font/google";
+import {
+  Bungee,
+  Inter,
+  Playfair_Display,
+  Space_Grotesk,
+  Space_Mono,
+} from "next/font/google";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -15,10 +21,25 @@ const spaceGrotesk = Space_Grotesk({
   display: "swap",
 });
 
+const playfairDisplay = Playfair_Display({
+  subsets: ["latin"],
+  weight: "700",
+  style: "italic",
+  variable: "--ff-playfair",
+  display: "swap",
+});
+
 const spaceMono = Space_Mono({
   subsets: ["latin"],
   weight: ["400", "700"],
   variable: "--ff-spacemono",
+  display: "swap",
+});
+
+const bungee = Bungee({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--ff-bungee",
   display: "swap",
 });
 
@@ -78,7 +99,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${spaceGrotesk.variable} ${spaceMono.variable}`}
+      className={`${inter.variable} ${spaceGrotesk.variable} ${playfairDisplay.variable} ${spaceMono.variable} ${bungee.variable}`}
     >
       <body className="flex min-h-svh flex-col overflow-x-clip">{children}</body>
     </html>
