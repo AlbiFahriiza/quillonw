@@ -7,11 +7,10 @@
   --color-mustard: #ffc93c;
   --color-teal: #2ec4b6;
 
-  --font-sans: var(--ff-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--ff-grotesk), ui-sans-serif, system-ui, sans-serif;
   --font-grotesk: var(--ff-grotesk), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--ff-playfair), ui-serif, Georgia, serif;
+  --font-serif: ui-serif, Georgia, serif;
   --font-mono: var(--ff-spacemono), ui-monospace, "Courier New", monospace;
-  --font-display: var(--ff-bungee), var(--ff-grotesk), sans-serif;
 }
 
 @utility shadow-cartoon-sm {
