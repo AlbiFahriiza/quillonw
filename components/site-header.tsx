@@ -1,12 +1,11 @@
 "use client";
 
 import { useRef } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { GitHubButton } from "@/components/github-button";
-import { asset } from "@/lib/site";
+import { QuillonMark } from "@/components/quillon-mark";
 
 export function SiteHeader() {
   const headerRef = useRef<HTMLElement>(null);
@@ -39,15 +38,8 @@ export function SiteHeader() {
         className="group flex items-center gap-3"
         aria-label="Quillon home"
       >
-        <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border-2 border-ink bg-cream shadow-cartoon-sm transition-transform duration-200 group-hover:-rotate-6">
-          <Image
-            src={asset("/quillon-mark.png")}
-            alt=""
-            width={36}
-            height={36}
-            priority
-            className="h-full w-full object-cover"
-          />
+        <span className="mark-box flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border-2 border-ink bg-cream shadow-cartoon-sm">
+          <QuillonMark className="h-full w-full" />
         </span>
         <span className="font-grotesk text-lg font-bold tracking-tight text-ink">
           Quillon

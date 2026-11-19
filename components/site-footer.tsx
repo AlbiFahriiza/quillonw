@@ -1,7 +1,6 @@
-import Image from "next/image";
 import { GitHubButton } from "@/components/github-button";
+import { QuillonMark } from "@/components/quillon-mark";
 import { StarSparkleIcon } from "@/components/icons";
-import { asset } from "@/lib/site";
 
 export function SiteFooter() {
   const year = new Date().getFullYear();
@@ -13,13 +12,9 @@ export function SiteFooter() {
         className="absolute -top-6 right-[12%] h-12 w-12 rotate-12 text-mustard"
       />
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-5 text-center">
-        <Image
-          src={asset("/quillon-mark.png")}
-          alt=""
-          width={56}
-          height={56}
-          className="h-14 w-14 rounded-2xl border-2 border-cream object-cover"
-        />
+        <span className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border-2 border-cream bg-cream">
+          <QuillonMark className="h-full w-full" />
+        </span>
         <p className="font-grotesk text-2xl font-bold tracking-tight text-cream">
           Quillon
         </p>
