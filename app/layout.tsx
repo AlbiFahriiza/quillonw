@@ -6,7 +6,7 @@ import {
   Space_Grotesk,
   Space_Mono,
 } from "next/font/google";
-import { SITE_URL } from "@/lib/site";
+import { SITE_URL, asset } from "@/lib/site";
 import "./globals.css";
 
 const inter = Inter({
@@ -74,7 +74,7 @@ export const metadata: Metadata = {
     locale: "en_US",
     images: [
       {
-        url: "/og-image.png",
+        url: asset("/og-image.png"),
         width: 1200,
         height: 630,
         alt: "Quillon — Code the frame. Coming soon.",
@@ -86,7 +86,7 @@ export const metadata: Metadata = {
     title,
     description:
       "A programmable video studio — where code becomes cinema. Coming soon.",
-    images: ["/og-image.png"],
+    images: [asset("/og-image.png")],
   },
   robots: { index: true, follow: true },
 };

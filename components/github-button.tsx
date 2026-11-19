@@ -52,28 +52,30 @@ export function GitHubButton({
 
     // Portaled toast outside the GSAP-animated header, so transforms there
     // can never turn this fixed layer into its containing block.
+    // The wipe replaces the old autoAlpha pair: a clip-path reveal plus a
+    // springy pop keeps the toast fully opaque at every frame.
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       timeline
-        .set(toast, { autoAlpha: 1 })
-        .set(toast, { autoAlpha: 0 }, TOAST_HOLD_SECONDS);
+        .set(toast, { clipPath: "inset(0 0 0 0)" })
+        .set(toast, { clipPath: "inset(0 0 100% 0)" }, TOAST_HOLD_SECONDS);
       return;
     }
 
     timeline
       .fromTo(
         toast,
-        { autoAlpha: 0, y: 18, scale: 0.94 },
+        { clipPath: "inset(0 0 100% 0)", y: 24, scale: 0.9 },
         {
-          autoAlpha: 1,
+          clipPath: "inset(0 0 0% 0)",
           y: 0,
           scale: 1,
-          duration: 0.34,
+          duration: 0.38,
           ease: "back.out(1.7)",
         },
       )
       .to(
         toast,
-        { autoAlpha: 0, y: 12, duration: 0.26, ease: "power1.in" },
+        { clipPath: "inset(0 0 100% 0)", y: 12, duration: 0.28, ease: "power1.in" },
         `+=${TOAST_HOLD_SECONDS}`,
       );
   }
@@ -88,11 +90,11 @@ export function GitHubButton({
       <button
         type="button"
         onClick={notify}
-        aria-label="Notify me"
+        aria-label="GitHub, coming soon"
         className={`inline-flex h-11 cursor-pointer items-center gap-2.5 rounded-full border-2 px-5 font-grotesk text-sm font-bold transition-[background-color,color,translate,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-cartoon-sm focus-visible:-translate-y-0.5 active:translate-y-0 ${tone} ${className}`}
       >
         <GitHubMarkIcon className="h-5 w-5 shrink-0" />
-        <span className="max-[420px]:hidden">Notify me</span>
+        <span className="max-[420px]:hidden">GitHub</span>
       </button>
       {mounted &&
         createPortal(
@@ -103,7 +105,7 @@ export function GitHubButton({
             <div
               ref={toastRef}
               aria-hidden="true"
-              className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4 opacity-0 invisible"
+              className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4 [clip-path:inset(0_0_100%_0)]"
             >
               <div className="flex max-w-full items-center gap-2.5 rounded-3xl border-2 border-ink bg-cream px-5 py-3 text-center shadow-cartoon-sm">
                 <StarBurstIcon className="h-4 w-4 shrink-0 text-mustard" />

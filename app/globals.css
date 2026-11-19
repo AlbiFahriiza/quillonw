@@ -51,4 +51,60 @@
     background-size: 0.9em 0.3em;
     padding-bottom: 0.16em;
   }
+
+  /* Pre-JS initial states for the hero entrance. Scoped to scripting-enabled
+     so the no-JS (and crawler) view renders fully in place, and neutralised
+     under reduced motion so nothing waits for a tween that never runs. */
+  @media (scripting: enabled) {
+    .hero-initial-wordmark {
+      transform: translateY(2.5rem);
+    }
+
+    .hero-initial-headline {
+      transform: translateY(3rem);
+    }
+
+    .hero-initial-coming-soon {
+      transform: translateY(2rem);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-initial-wordmark,
+    .hero-initial-headline,
+    .hero-initial-coming-soon,
+    .header-initial {
+      transform: none;
+    }
+  }
+
+  /* Same pre-JS pattern for the fixed header: starts translated up, drops in
+     when JS runs. Without this the header would flash fully visible first. */
+  @media (scripting: enabled) {
+    .header-initial {
+      transform: translateY(-1.75rem);
+    }
+  }
+
+  /* Scroll-triggered reveals below the fold: offset and clipped in CSS so
+     the first paint of these sections already matches the animation start. */
+  @media (scripting: enabled) {
+    .reveal-initial-statement {
+      transform: translateY(2.75rem);
+      clip-path: inset(0 0 100% 0);
+    }
+
+    .reveal-initial-frame {
+      transform: translateY(3.5rem);
+      clip-path: inset(0 0 100% 0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal-initial-statement,
+    .reveal-initial-frame {
+      transform: none;
+      clip-path: none;
+    }
+  }
 }

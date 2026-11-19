@@ -3,12 +3,7 @@
 import { useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import {
-  SquiggleIcon,
-  StarBurstIcon,
-  StarSparkleIcon,
-  TealDiscIcon,
-} from "@/components/icons";
+import { StarBurstIcon } from "@/components/icons";
 
 // Sans -> Serif -> Monospace -> Display, one family per second. Playfair is
 // loaded italic-only and Bungee ships in 400 alone, so every entry carries the
@@ -38,36 +33,17 @@ const LETTER_PLAY = [
   { rotate: 5, y: 6 },
 ] as const;
 
-const FLOAT_TWEENS = [
-  { selector: '[data-float="sparkle"]', vars: { y: -14, rotate: 14, duration: 2.6, delay: 1.4 } },
-  { selector: '[data-float="disc"]', vars: { y: 12, x: -8, duration: 3.4, delay: 0.9 } },
-  { selector: '[data-float="burst"]', vars: { y: -10, rotate: -12, duration: 3, delay: 1.9 } },
-  { selector: '[data-float="squiggle"]', vars: { y: 10, duration: 2.2, delay: 1.1 } },
-] as const;
-
 function playEntrance() {
+  // Translate-only entrance (rule 2.1 bans opacity). The starting offsets
+  // come from the hero-initial CSS block, which only applies when scripting
+  // is enabled, so the first paint already shows the offset state.
   const entrance = gsap.timeline({
     defaults: { ease: "power3.out", duration: 0.85 },
   });
   entrance
-    .from('[data-hero="wordmark"]', { y: 42, autoAlpha: 0 })
-    .from('[data-hero="headline"]', { y: 52, autoAlpha: 0 }, "-=0.6")
-    .from('[data-hero="coming-soon"]', { y: 34, autoAlpha: 0 }, "-=0.6")
-    .from(
-      '[data-hero="shape"]',
-      {
-        scale: 0,
-        autoAlpha: 0,
-        duration: 0.55,
-        stagger: 0.1,
-        ease: "back.out(2.4)",
-      },
-      "-=0.45",
-    );
-
-  for (const { selector, vars } of FLOAT_TWEENS) {
-    gsap.to(selector, { ...vars, repeat: -1, yoyo: true, ease: "sine.inOut" });
-  }
+    .to('[data-hero="wordmark"]', { y: 0, overwrite: "auto" })
+    .to('[data-hero="headline"]', { y: 0 }, "-=0.6")
+    .to('[data-hero="coming-soon"]', { y: 0 }, "-=0.6");
 }
 
 function applyFontCycle(element: HTMLElement, index: number) {
@@ -107,45 +83,6 @@ function ComingSoonWord({ word, offset }: { word: string; offset: number }) {
   );
 }
 
-function HeroShapes() {
-  return (
-    <>
-      <div
-        data-hero="shape"
-        data-float="sparkle"
-        aria-hidden="true"
-        className="absolute left-[7%] top-[20%] hidden text-mustard md:block"
-      >
-        <StarSparkleIcon className="h-14 w-14" />
-      </div>
-      <div
-        data-hero="shape"
-        data-float="disc"
-        aria-hidden="true"
-        className="absolute right-[9%] top-[26%] hidden text-teal md:block"
-      >
-        <TealDiscIcon className="h-16 w-16" />
-      </div>
-      <div
-        data-hero="shape"
-        data-float="burst"
-        aria-hidden="true"
-        className="absolute bottom-[26%] right-[15%] hidden text-tomato lg:block"
-      >
-        <StarBurstIcon className="h-12 w-12" />
-      </div>
-      <div
-        data-hero="shape"
-        data-float="squiggle"
-        aria-hidden="true"
-        className="absolute bottom-[18%] left-[12%] hidden text-ink lg:block"
-      >
-        <SquiggleIcon className="h-8 w-20" />
-      </div>
-    </>
-  );
-}
-
 export function Hero() {
   const heroRef = useRef<HTMLElement>(null);
   const comingSoonRef = useRef<HTMLSpanElement>(null);
@@ -180,18 +117,16 @@ export function Hero() {
       aria-label="Quillon is coming soon"
       className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden px-6 pb-16 pt-24 text-center"
     >
-      <HeroShapes />
-
       <p
         data-hero="wordmark"
-        className="pl-[0.5em] font-grotesk text-sm font-medium uppercase tracking-[0.5em] text-ink md:text-base"
+        className="hero-initial hero-initial-wordmark pl-[0.5em] font-grotesk text-sm font-medium uppercase tracking-[0.5em] text-ink md:text-base"
       >
         Quillon
       </p>
 
       <h1
         data-hero="headline"
-        className="mt-6 max-w-5xl font-grotesk text-6xl font-bold leading-[1.04] tracking-tight text-ink sm:text-7xl lg:text-8xl"
+        className="hero-initial hero-initial-headline mt-6 max-w-5xl font-grotesk text-6xl font-bold leading-[1.04] tracking-tight text-ink sm:text-7xl lg:text-8xl"
       >
         Code the <span className="marker-highlight">frame.</span>
       </h1>
@@ -199,7 +134,7 @@ export function Hero() {
       {/* Fixed height in em keeps the layout steady while the family swaps. */}
       <p
         data-hero="coming-soon"
-        className="mt-12 flex h-[1.4em] items-center justify-center text-[clamp(1.5rem,9vw,5.25rem)]"
+        className="hero-initial hero-initial-coming-soon mt-12 flex h-[1.4em] items-center justify-center text-[clamp(1.5rem,9vw,5.25rem)]"
       >
         <span className="sr-only">Coming soon</span>
         <span

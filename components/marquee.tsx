@@ -62,9 +62,12 @@ export function Marquee() {
 
   return (
     <div ref={marqueeRef} aria-hidden="true" className="relative z-10 select-none overflow-hidden py-8">
-      {/* Bleed 2vw past each edge so the tilt never uncovers a corner. */}
-      <div className="absolute inset-x-[-2vw] top-11 h-[calc(100%-2.75rem)] rotate-[1.1deg] rounded-2xl border-2 border-ink bg-mustard" />
-      <div className="relative mx-[-2vw] -rotate-[1.1deg] overflow-hidden rounded-2xl border-2 border-ink bg-ink py-4 text-cream shadow-cartoon md:py-5">
+      {/* min(-3rem,-4vw) is -max(3rem,4vw): at least 3rem of bleed on any
+          phone (2vw was only 7.5px at 375px, thinner than the 16px radius plus
+          2px border the tilt must hide), growing with the viewport so the
+          24.6px vertical tilt offset at 2560px stays covered too. */}
+      <div className="absolute inset-x-[min(-3rem,-4vw)] top-11 h-[calc(100%-2.75rem)] rotate-[1.1deg] rounded-2xl border-2 border-ink bg-mustard" />
+      <div className="relative mx-[min(-3rem,-4vw)] -rotate-[1.1deg] overflow-hidden rounded-2xl border-2 border-ink bg-ink py-4 text-cream shadow-cartoon md:py-5">
         <div data-marquee="track" className="flex w-max items-center">
           {half}
           {half}

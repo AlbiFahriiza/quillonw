@@ -28,16 +28,19 @@ const FRAMES: FrameSpec[] = [
 
 const SPROCKET_COUNT = 8;
 
+// Offsets live in the reveal-initial CSS rules so the pre-JS paint already
+// shows the hidden state; these tweens only bring elements to their natural
+// place (rule 2.1: translate and clip-path, never opacity).
 const STATEMENT_REVEAL = {
-  y: 44,
-  autoAlpha: 0,
+  y: 0,
+  clipPath: "inset(0 0 0% 0)",
   duration: 0.8,
   ease: "power3.out",
 } as const;
 
 const FRAME_REVEAL = {
-  y: 56,
-  autoAlpha: 0,
+  y: 0,
+  clipPath: "inset(0 0 0% 0)",
   duration: 0.7,
   stagger: 0.14,
   ease: "back.out(1.6)",
@@ -61,7 +64,7 @@ function Frame({ number, label, Icon, chip }: FrameSpec) {
   return (
     <li
       data-reveal="frame"
-      className="flex flex-row items-center gap-4 rounded-2xl border-2 border-ink bg-cream px-4 py-5 md:flex-col md:items-start md:gap-4 md:px-6 md:py-8"
+      className="reveal-initial reveal-initial-frame flex flex-row items-center gap-4 rounded-2xl border-2 border-ink bg-cream px-4 py-5 md:flex-col md:items-start md:gap-4 md:px-6 md:py-8"
     >
       <span
         className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 border-ink text-ink md:h-14 md:w-14 ${chip}`}
@@ -88,11 +91,11 @@ export function WhatIsQuillon() {
       gsap
         .matchMedia()
         .add("(prefers-reduced-motion: no-preference)", () => {
-          gsap.from('[data-reveal="statement"]', {
+          gsap.to('[data-reveal="statement"]', {
             ...STATEMENT_REVEAL,
             scrollTrigger: { trigger: sectionRef.current, start: "top 72%" },
           });
-          gsap.from('[data-reveal="frame"]', {
+          gsap.to('[data-reveal="frame"]', {
             ...FRAME_REVEAL,
             scrollTrigger: {
               trigger: '[data-reveal="strip"]',
@@ -114,7 +117,7 @@ export function WhatIsQuillon() {
       <div className="mx-auto max-w-6xl">
         <div
           data-reveal="statement"
-          className="flex flex-col items-center text-center"
+          className="reveal-initial reveal-initial-statement flex flex-col items-center text-center"
         >
           <h2
             id="what-is-quillon-heading"

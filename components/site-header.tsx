@@ -16,9 +16,10 @@ export function SiteHeader() {
       gsap
         .matchMedia()
         .add("(prefers-reduced-motion: no-preference)", () => {
-          gsap.from("[data-header-item]", {
-            y: -28,
-            autoAlpha: 0,
+          // Translate-only drop-in; the starting offset lives in the
+          // header-initial CSS rule, not in a gsap.from that would flash.
+          gsap.to("[data-header-item]", {
+            y: 0,
             duration: 0.7,
             stagger: 0.12,
             ease: "power3.out",
@@ -36,7 +37,7 @@ export function SiteHeader() {
       <Link
         href="/"
         data-header-item
-        className="group flex items-center gap-3"
+        className="header-initial group flex items-center gap-3"
         aria-label="Quillon home"
       >
         <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border-2 border-ink bg-cream shadow-cartoon-sm transition-transform duration-200 group-hover:-rotate-6">
@@ -53,7 +54,7 @@ export function SiteHeader() {
           Quillon
         </span>
       </Link>
-      <div data-header-item>
+      <div data-header-item className="header-initial">
         <GitHubButton />
       </div>
     </header>
