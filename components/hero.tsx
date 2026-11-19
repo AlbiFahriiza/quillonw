@@ -4,6 +4,7 @@ import { useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ComingSoonMorph } from "@/components/coming-soon-morph";
+import { Sprinkles } from "@/components/sprinkles";
 
 function playEntrance() {
   // Translate-only entrance (rule 2.1 bans opacity). The starting offsets
@@ -38,6 +39,7 @@ export function Hero() {
       aria-label="Quillon is coming soon"
       className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden px-6 pb-16 pt-24 text-center"
     >
+      <Sprinkles />
       <p
         data-hero="wordmark"
         className="hero-initial hero-initial-wordmark pl-[0.5em] font-grotesk text-sm font-medium uppercase tracking-[0.5em] text-ink md:text-base"

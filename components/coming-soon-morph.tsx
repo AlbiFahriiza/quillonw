@@ -14,6 +14,7 @@ import {
   VIEW_H,
   VIEW_W,
 } from "@/lib/coming-soon-paths";
+import { onQualityChange, qualityTier } from "@/lib/quality";
 
 gsap.registerPlugin(MorphSVGPlugin);
 
@@ -57,7 +58,14 @@ export function ComingSoonMorph() {
         .add("(prefers-reduced-motion: no-preference)", () => {
           let fontIndex = 0;
           let starIndex = 0;
+          let tier = qualityTier();
           const groups = wrap!.querySelectorAll("[data-cs-group]");
+          let cancelled = false;
+          let scheduledCall: gsap.core.Tween | null = null;
+
+          const offQuality = onQualityChange((t) => {
+            tier = t;
+          });
 
           function playNextSwap() {
             fontIndex = (fontIndex + 1) % FONT_KEYS.length;
@@ -106,9 +114,16 @@ export function ComingSoonMorph() {
 
           // Swap -> hold -> swap. gsap.delayedCall rides the same ticker
           // clock as every other tween (rule 2.3: one animation clock).
+          // Tier 0 freezes the cycle on the current face: simplified morph,
+          // still a complete, animated-enough hero.
           function schedule() {
+            if (cancelled) return;
+            if (tier === 0) {
+              scheduledCall = gsap.delayedCall(HOLD_SECONDS, schedule);
+              return;
+            }
             playNextSwap();
-            gsap.delayedCall(
+            scheduledCall = gsap.delayedCall(
               MORPH_SECONDS +
                 STAGGER_SECONDS * paths.length +
                 HOLD_SECONDS,
@@ -118,6 +133,9 @@ export function ComingSoonMorph() {
           schedule();
 
           return () => {
+            cancelled = true;
+            offQuality();
+            scheduledCall?.kill();
             gsap.killTweensOf(paths);
             if (star) gsap.killTweensOf(star);
             gsap.killTweensOf(groups);
