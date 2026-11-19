@@ -4,6 +4,7 @@ import { useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ComingSoonMorph } from "@/components/coming-soon-morph";
+import { DonutDemo } from "@/components/donut-demo";
 import { Sprinkles } from "@/components/sprinkles";
 
 function playEntrance() {
@@ -37,19 +38,19 @@ export function Hero() {
     <section
       ref={heroRef}
       aria-label="Quillon is coming soon"
-      className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden px-6 pb-16 pt-24 text-center"
+      className="relative flex min-h-svh flex-col items-center justify-start overflow-hidden px-5 pb-12 pt-24 text-center md:justify-center md:px-6 md:pb-16 md:pt-28"
     >
       <Sprinkles />
       <p
         data-hero="wordmark"
-        className="hero-initial hero-initial-wordmark pl-[0.5em] font-grotesk text-sm font-medium uppercase tracking-[0.5em] text-ink md:text-base"
+        className="hero-initial hero-initial-wordmark pl-[0.5em] font-grotesk text-xs font-medium uppercase tracking-[0.5em] text-ink md:text-base"
       >
         Quillon
       </p>
 
       <h1
         data-hero="headline"
-        className="hero-initial hero-initial-headline mt-6 max-w-5xl font-grotesk text-6xl font-bold leading-[1.04] tracking-tight text-ink sm:text-7xl lg:text-8xl"
+        className="hero-initial hero-initial-headline mt-3 max-w-5xl font-grotesk text-4xl font-bold leading-[1.05] tracking-tight text-ink sm:text-6xl md:mt-6 md:text-7xl lg:text-8xl"
       >
         Code the <span className="marker-highlight">frame.</span>
       </h1>
@@ -57,11 +58,13 @@ export function Hero() {
       {/* One fixed viewBox: the morphing line can never change width (B5). */}
       <p
         data-hero="coming-soon"
-        className="hero-initial hero-initial-coming-soon mt-12 flex w-full items-center justify-center px-2"
+        className="hero-initial hero-initial-coming-soon mt-5 flex w-full items-center justify-center px-2 md:mt-12"
       >
         <span className="sr-only">Coming soon</span>
         <ComingSoonMorph />
       </p>
+
+      <DonutDemo />
     </section>
   );
 }
