@@ -2,245 +2,221 @@
 
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
-import { onQualityChange, qualityTier } from "@/lib/quality";
+import { getTier, subscribeTier } from "@/lib/quality";
 
-/**
- * Sprinkle background behind the hero: flat-colour rounded bars and dots
- * drifting slowly, nudged by scroll velocity, bursting on demand.
- *
- * Draw rules follow the performance contract: one canvas, DPR capped at 2,
- * no shadowBlur, no gradients, batched by colour, zero per-frame allocations
- * (all particle state lives in preallocated typed arrays).
- */
+const EVENT = "quillon:sprinkles";
 
-const COLORS = ["#1b1b1b", "#ff5a4e", "#ffc93c", "#2ec4b6", "#fff6e5"] as const;
-
-// Bar dimensions in CSS pixels at rest; rotation and spin give the life.
-const BAR_W = 10;
-const BAR_H = 3.5;
-const DOT_R = 2.5;
-
-const DRIFT_MIN = 6; // px/s
-const DRIFT_MAX = 18;
-const SPIN_MAX = 0.6; // rad/s
-const SCROLL_PUSH = 0.12; // how strongly scroll velocity adds to drift
-
-type Particle = {
-  x: number;
+export type SprinkleDetail = {
+  x: number; // client coordinates
   y: number;
-  vx: number;
-  vy: number;
-  rot: number;
-  vrot: number;
-  scale: number;
-  color: number;
-  isBar: number;
+  count?: number;
+  mode?: "burst" | "rain";
+  width?: number; // rain only: horizontal spread in px
 };
+
+export function emitSprinkles(detail: SprinkleDetail) {
+  window.dispatchEvent(new CustomEvent<SprinkleDetail>(EVENT, { detail }));
+}
+
+const PALETTE: [string, string][] = [
+  ["--color-tomato", "#ff5a4e"],
+  ["--color-mustard", "#ffc93c"],
+  ["--color-teal", "#2ec4b6"],
+  ["--color-ink", "#1b1b1b"],
+];
+// Mostly the three brights, ink only as an accent.
+const COLOR_PICK = [0, 1, 2, 0, 1, 2, 3];
+const GRAVITY = 900;
+
+const easeOutBack = (x: number) => {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * (x - 1) ** 3 + c1 * (x - 1) ** 2;
+};
+// Particles pop in by scale; nothing here ever changes opacity.
+const grow = (age: number) => (age <= 0 ? 0 : age < 0.45 ? easeOutBack(age / 0.45) : 1);
 
 export function Sprinkles() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
 
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const rootStyle = getComputedStyle(document.documentElement);
+    const colors = PALETTE.map(([name, fallback]) => rootStyle.getPropertyValue(name).trim() || fallback);
 
-    let particles: Particle[] = [];
-    let width = 0;
-    let height = 0;
-    let dpr = 1;
-    let running = false;
-    let lastScrollY = window.scrollY;
-    let scrollVelocity = 0;
-    let tier = qualityTier();
+    const small = window.matchMedia("(max-width: 767px)").matches;
+    const AMBIENT = small ? 46 : 110;
+    const BURST = 70;
+    const N = AMBIENT + BURST;
+    const BASE = small ? 9 : 12;
 
-    function maxCount(): number {
-      if (tier === 0 || reduceMotion) return 0;
-      const phone = window.matchMedia("(max-width: 767px)").matches;
-      const base = phone ? 50 : 120;
-      return tier === 2 ? base : Math.floor(base / 2);
-    }
+    const x = new Float32Array(N), y = new Float32Array(N);
+    const vx = new Float32Array(N), vy = new Float32Array(N);
+    const rot = new Float32Array(N), vr = new Float32Array(N);
+    const size = new Float32Array(N), depth = new Float32Array(N);
+    const born = new Float32Array(N), life = new Float32Array(N);
+    const kind = new Uint8Array(N); // 0 dead, 1 ambient, 2 burst
+    const col = new Uint8Array(N);
 
-    function resize() {
-      const rect = canvas!.getBoundingClientRect();
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
-      width = rect.width;
-      height = rect.height;
-      canvas!.width = Math.round(width * dpr);
-      canvas!.height = Math.round(height * dpr);
-      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
-      rebuild();
-    }
+    let width = 1, height = 1, dpr = 1;
+    let time = 0;
+    let visible = true;
+    let tier = getTier();
+    let ambientLimit = AMBIENT;
 
-    function rebuild() {
-      const count = maxCount();
-      particles = [];
-      for (let i = 0; i < count; i++) {
-        const isBar = Math.random() < 0.7 ? 1 : 0;
-        particles.push({
-          x: Math.random() * width,
-          y: Math.random() * height,
-          vx: (Math.random() * 2 - 1) * DRIFT_MAX,
-          vy: DRIFT_MIN + Math.random() * (DRIFT_MAX - DRIFT_MIN),
-          rot: Math.random() * Math.PI * 2,
-          vrot: (Math.random() * 2 - 1) * SPIN_MAX,
-          scale: 0.7 + Math.random() * 0.6,
-          color: Math.floor(Math.random() * COLORS.length),
-          isBar,
-        });
-      }
-    }
+    const pickColor = () => COLOR_PICK[Math.floor(Math.random() * COLOR_PICK.length)];
 
-    // Burst: existing particles get an outward kick plus a few extra lives
-    // near the tap point. Called by the donut demo via a custom event.
-    function burst(bx: number, by: number) {
-      for (const p of particles) {
-        const dx = p.x - bx;
-        const dy = p.y - by;
-        const dist = Math.hypot(dx, dy) || 1;
-        if (dist < 260) {
-          const kick = (1 - dist / 260) * 220;
-          p.vx += (dx / dist) * kick;
-          p.vy += (dy / dist) * kick;
-        }
-      }
-    }
-
-    function step(_time: number, deltaSeconds: number) {
-      if (!running) return;
-      const dt = Math.min(deltaSeconds, 0.05);
-
-      // Scroll velocity feeds a gentle push on top of the base drift.
-      const sy = window.scrollY;
-      scrollVelocity = scrollVelocity * 0.9 + (sy - lastScrollY) * 0.1;
-      lastScrollY = sy;
-
-      ctx!.clearRect(0, 0, width, height);
-
-      // Batched by colour: one fillStyle switch per colour per frame.
-      for (let c = 0; c < COLORS.length; c++) {
-        ctx!.fillStyle = COLORS[c];
-        ctx!.beginPath();
-        let any = false;
-        for (const p of particles) {
-          if (p.color !== c) continue;
-          any = true;
-          p.x += (p.vx + scrollVelocity * SCROLL_PUSH) * dt;
-          p.y += p.vy * dt;
-          p.rot += p.vrot * dt;
-          // Friction pulls burst velocities back to the base drift.
-          p.vx *= 0.985;
-          p.vy = p.vy * 0.985 + 0.15 * dt;
-          if (p.y - 8 > height) {
-            p.y = -8;
-            p.x = Math.random() * width;
-          }
-          if (p.y + 8 < 0) p.y = height + 8;
-          if (p.x - 8 > width) p.x = -8;
-          if (p.x + 8 < 0) p.x = width + 8;
-
-          if (p.isBar) {
-            const w = BAR_W * p.scale;
-            const h = BAR_H * p.scale;
-            const cos = Math.cos(p.rot);
-            const sin = Math.sin(p.rot);
-            ctx!.moveTo(
-              p.x + (-w / 2) * cos - (-h / 2) * sin,
-              p.y + (-w / 2) * sin + (-h / 2) * cos,
-            );
-            ctx!.lineTo(
-              p.x + (w / 2) * cos - (-h / 2) * sin,
-              p.y + (w / 2) * sin + (-h / 2) * cos,
-            );
-            ctx!.lineTo(
-              p.x + (w / 2) * cos - (h / 2) * sin,
-              p.y + (w / 2) * sin + (h / 2) * cos,
-            );
-            ctx!.lineTo(
-              p.x + (-w / 2) * cos - (h / 2) * sin,
-              p.y + (-w / 2) * sin + (h / 2) * cos,
-            );
-            ctx!.closePath();
-          }
-        }
-        if (any) ctx!.fill();
-        // Dots need their own pass (arc batching), still one colour switch.
-        ctx!.beginPath();
-        let anyDot = false;
-        for (const p of particles) {
-          if (p.color !== c || p.isBar) continue;
-          anyDot = true;
-          ctx!.moveTo(p.x + DOT_R * p.scale, p.y);
-          ctx!.arc(p.x, p.y, DOT_R * p.scale, 0, Math.PI * 2);
-        }
-        if (anyDot) ctx!.fill();
-      }
-    }
-
-    function start() {
-      if (running || reduceMotion) return;
-      running = true;
-      gsap.ticker.add(step);
-    }
-
-    function stop() {
-      running = false;
-      gsap.ticker.remove(step);
-    }
-
-    const onVisibility = () => {
-      if (document.hidden) stop();
-      else start();
+    const seedAmbient = (i: number, anywhere: boolean) => {
+      depth[i] = 0.55 + Math.random() * 0.45;
+      x[i] = Math.random() * width;
+      y[i] = anywhere ? Math.random() * height : -20;
+      vx[i] = (Math.random() - 0.5) * 10;
+      vy[i] = (10 + Math.random() * 22) * depth[i];
+      rot[i] = Math.random() * Math.PI;
+      vr[i] = (Math.random() - 0.5) * 1.2;
+      size[i] = BASE * (0.8 + Math.random() * 0.5) * depth[i];
+      col[i] = pickColor();
+      born[i] = reduceMotion ? -10 : time + Math.random() * 1.6;
+      life[i] = Infinity;
+      kind[i] = 1;
     };
 
-    const ro = new ResizeObserver(resize);
-    ro.observe(canvas);
-    resize();
+    const applyTier = () => {
+      ambientLimit = tier === 2 ? AMBIENT : tier === 1 ? Math.round(AMBIENT * 0.4) : 0;
+      for (let i = ambientLimit; i < AMBIENT; i++) kind[i] = 0;
+      // An idle canvas still costs a compositor layer, so tier 0 removes it entirely.
+      canvas.style.display = tier === 0 ? "none" : "block";
+    };
 
-    const offQuality = onQualityChange((t) => {
-      tier = t;
-      rebuild();
+    const resize = () => {
+      const box = canvas.getBoundingClientRect();
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      width = Math.max(1, box.width);
+      height = Math.max(1, box.height);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      if (reduceMotion) draw(0);
+    };
+
+    const hasRoundRect = typeof ctx.roundRect === "function";
+    const draw = (scrollY: number) => {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let i = 0; i < N; i++) {
+        if (kind[i] === 0) continue;
+        const age = time - born[i];
+        let s = grow(age);
+        if (kind[i] === 2 && life[i] - age < 0.35) s = Math.max(0, (life[i] - age) / 0.35);
+        if (s < 0.02) continue;
+        const parallax = kind[i] === 1 ? -scrollY * 0.18 * (depth[i] - 0.5) : 0;
+        const c = Math.cos(rot[i]) * dpr, n = Math.sin(rot[i]) * dpr;
+        ctx.setTransform(c, n, -n, c, x[i] * dpr, (y[i] + parallax) * dpr);
+        ctx.fillStyle = colors[col[i]];
+        const w = size[i] * s, h = w * 0.38;
+        if (hasRoundRect) {
+          ctx.beginPath();
+          ctx.roundRect(-w / 2, -h / 2, w, h, h / 2);
+          ctx.fill();
+        } else {
+          ctx.fillRect(-w / 2, -h / 2, w, h);
+        }
+      }
+    };
+
+    const tick = (_: number, deltaMs: number) => {
+      if (!visible || tier === 0 || document.hidden) return;
+      const dt = Math.min(deltaMs, 50) / 1000;
+      time += dt;
+      for (let i = 0; i < N; i++) {
+        if (kind[i] === 0) continue;
+        if (kind[i] === 1) {
+          x[i] += (vx[i] + Math.sin(time * 0.6 + i) * 8) * dt;
+          y[i] += vy[i] * dt;
+          rot[i] += vr[i] * dt;
+          if (y[i] > height + 20) seedAmbient(i, false);
+          if (x[i] < -20) x[i] = width + 20;
+          else if (x[i] > width + 20) x[i] = -20;
+        } else {
+          vy[i] += GRAVITY * dt;
+          vx[i] *= 1 - 1.4 * dt;
+          x[i] += vx[i] * dt;
+          y[i] += vy[i] * dt;
+          rot[i] += vr[i] * dt;
+          if (time - born[i] > life[i]) kind[i] = 0;
+        }
+      }
+      draw(window.scrollY);
+    };
+
+    const onSprinkles = (event: Event) => {
+      if (tier === 0 || reduceMotion) return;
+      const { x: cx, y: cy, count = 26, mode = "burst", width: spread = 0 } = (event as CustomEvent<SprinkleDetail>).detail;
+      const box = canvas.getBoundingClientRect();
+      const bx = cx - box.left, by = cy - box.top;
+      let todo = Math.round(count * (tier === 1 ? 0.5 : 1) * (small ? 0.7 : 1));
+      for (let i = AMBIENT; i < N && todo > 0; i++) {
+        if (kind[i] !== 0) continue;
+        todo--;
+        const speed = 220 + Math.random() * 300;
+        if (mode === "rain") {
+          x[i] = bx + (Math.random() - 0.5) * spread;
+          y[i] = by - Math.random() * 40;
+          vx[i] = (Math.random() - 0.5) * 40;
+          vy[i] = 60 + Math.random() * 140;
+        } else {
+          const angle = -Math.PI / 2 + (Math.random() - 0.5) * 2.4;
+          x[i] = bx; y[i] = by;
+          vx[i] = Math.cos(angle) * speed;
+          vy[i] = Math.sin(angle) * speed;
+        }
+        rot[i] = Math.random() * Math.PI;
+        vr[i] = (Math.random() - 0.5) * 14;
+        size[i] = BASE * (1 + Math.random() * 0.4);
+        depth[i] = 1;
+        col[i] = pickColor();
+        born[i] = time;
+        life[i] = 1.6 + Math.random() * 0.8;
+        kind[i] = 2;
+      }
+    };
+
+    resize();
+    for (let i = 0; i < AMBIENT; i++) seedAmbient(i, true);
+    if (reduceMotion) draw(0);
+    applyTier();
+    const observer = new ResizeObserver(resize);
+    observer.observe(canvas);
+    const visibility = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+    });
+    visibility.observe(canvas);
+    const unsubscribe = subscribeTier((next) => {
+      tier = next;
+      applyTier();
     });
 
-    const onBurst = (event: Event) => {
-      const detail = (event as CustomEvent<{ x: number; y: number }>).detail;
-      if (detail) burst(detail.x, detail.y);
-    };
-    window.addEventListener("quillon:sprinkle-burst", onBurst);
-
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) start();
-          else stop();
-        }
-      },
-      { threshold: 0 },
-    );
-    io.observe(canvas);
-
-    document.addEventListener("visibilitychange", onVisibility);
-
+    if (!reduceMotion) {
+      gsap.ticker.add(tick);
+      window.addEventListener(EVENT, onSprinkles);
+    }
     return () => {
-      stop();
-      ro.disconnect();
-      io.disconnect();
-      offQuality();
-      window.removeEventListener("quillon:sprinkle-burst", onBurst);
-      document.removeEventListener("visibilitychange", onVisibility);
+      gsap.ticker.remove(tick);
+      window.removeEventListener(EVENT, onSprinkles);
+      observer.disconnect();
+      visibility.disconnect();
+      unsubscribe();
     };
   }, []);
 
+  // The canvas is one viewport tall and sticks to the top while the hero is on screen,
+  // so its backing store stays small no matter how tall the hero gets on a phone.
   return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0 h-full w-full"
-    />
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+      <canvas ref={canvasRef} className="sticky top-0 block h-svh w-full" />
+    </div>
   );
 }

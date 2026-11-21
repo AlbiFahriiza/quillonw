@@ -13,17 +13,19 @@ export function SiteHeader() {
 
   useGSAP(
     () => {
+      const items = gsap.utils.toArray<HTMLElement>("[data-header-item]");
+      // The stylesheet parked the items above the screen for first paint; hand over to GSAP.
+      items.forEach((item) => {
+        item.style.translate = "none";
+      });
       gsap
         .matchMedia()
         .add("(prefers-reduced-motion: no-preference)", () => {
-          // Translate-only drop-in; the starting offset lives in the
-          // header-initial CSS rule, not in a gsap.from that would flash.
-          gsap.to("[data-header-item]", {
-            y: 0,
-            duration: 0.7,
-            stagger: 0.12,
-            ease: "power3.out",
-          });
+          gsap.fromTo(
+            items,
+            { y: -144 },
+            { y: 0, duration: 0.9, stagger: 0.12, ease: "back.out(1.6)" },
+          );
         });
     },
     { scope: headerRef },
@@ -37,7 +39,7 @@ export function SiteHeader() {
       <Link
         href="/"
         data-header-item
-        className="header-initial group flex items-center gap-3"
+        className="group flex items-center gap-3"
         aria-label="Quillon home"
       >
         <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border-2 border-ink bg-cream shadow-cartoon-sm transition-transform duration-200 group-hover:-rotate-6">
@@ -54,7 +56,7 @@ export function SiteHeader() {
           Quillon
         </span>
       </Link>
-      <div data-header-item className="header-initial">
+      <div data-header-item>
         <GitHubButton />
       </div>
     </header>

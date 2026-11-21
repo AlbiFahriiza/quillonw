@@ -7,6 +7,9 @@ import { GitHubMarkIcon, StarBurstIcon } from "@/components/icons";
 
 const NOTICE = "We are building the tools, please wait.";
 const TOAST_HOLD_SECONDS = 3.2;
+// Same unit on both ends so GSAP can interpolate the inset.
+const TOAST_HIDDEN = "inset(160px 0px 0px 0px)";
+const TOAST_SHOWN = "inset(-14px -14px -14px -14px)";
 
 const emptySubscribe = () => () => {};
 
@@ -52,30 +55,30 @@ export function GitHubButton({
 
     // Portaled toast outside the GSAP-animated header, so transforms there
     // can never turn this fixed layer into its containing block.
-    // The wipe replaces the old autoAlpha pair: a clip-path reveal plus a
-    // springy pop keeps the toast fully opaque at every frame.
+    // Hidden and shown by clipping the pill, never by fading it. The shown inset is
+    // negative so the hard shadow is not cut off.
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       timeline
-        .set(toast, { clipPath: "inset(0 0 0 0)" })
-        .set(toast, { clipPath: "inset(0 0 100% 0)" }, TOAST_HOLD_SECONDS);
+        .set(toast, { clipPath: TOAST_SHOWN })
+        .set(toast, { clipPath: TOAST_HIDDEN }, TOAST_HOLD_SECONDS);
       return;
     }
 
     timeline
       .fromTo(
         toast,
-        { clipPath: "inset(0 0 100% 0)", y: 24, scale: 0.9 },
+        { clipPath: TOAST_HIDDEN, y: 24, scale: 0.94 },
         {
-          clipPath: "inset(0 0 0% 0)",
+          clipPath: TOAST_SHOWN,
           y: 0,
           scale: 1,
-          duration: 0.38,
+          duration: 0.45,
           ease: "back.out(1.7)",
         },
       )
       .to(
         toast,
-        { clipPath: "inset(0 0 100% 0)", y: 12, duration: 0.28, ease: "power1.in" },
+        { clipPath: TOAST_HIDDEN, y: 16, duration: 0.3, ease: "power3.in" },
         `+=${TOAST_HOLD_SECONDS}`,
       );
   }
@@ -103,11 +106,14 @@ export function GitHubButton({
               {notice ?? ""}
             </span>
             <div
-              ref={toastRef}
               aria-hidden="true"
-              className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4 [clip-path:inset(0_0_100%_0)]"
+              className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4"
             >
-              <div className="flex max-w-full items-center gap-2.5 rounded-3xl border-2 border-ink bg-cream px-5 py-3 text-center shadow-cartoon-sm">
+              <div
+                ref={toastRef}
+                style={{ clipPath: TOAST_HIDDEN }}
+                className="flex max-w-full items-center gap-2.5 rounded-3xl border-2 border-ink bg-cream px-5 py-3 text-center shadow-cartoon-sm"
+              >
                 <StarBurstIcon className="h-4 w-4 shrink-0 text-mustard" />
                 <p className="font-grotesk text-sm font-bold text-ink">
                   {NOTICE}

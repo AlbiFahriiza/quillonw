@@ -1,68 +1,72 @@
-"use client";
-
 import gsap from "gsap";
 
-/**
- * Runtime quality tier, shared by every animated component.
- *
- * One EMA of the gsap ticker delta decides the tier: if the smoothed frame
- * time stays above SLOW_MS for SLOW_FRAMES consecutive frames, the tier
- * drops one step and never rises again in the session (no flapping). Tier 2
- * is full effects, tier 1 fewer particles and no gooey filter, tier 0 static
- * backgrounds only.
- *
- * Components subscribe with onQualityChange and read the current value with
- * qualityTier(); the value deliberately does not live in React state,
- * because it can change every few frames and re-rendering on it would cost
- * more than it saves.
- */
+// 2 = full effects, 1 = fewer particles and no gooey filter, 0 = no particles.
+export type Tier = 0 | 1 | 2;
 
-export type QualityTier = 0 | 1 | 2;
+const SLOW_FRAME_MS = 20; // sustained above this means we are under ~50fps
+const SLOW_FRAMES_TO_DROP = 30;
+const WARMUP_FRAMES = 90; // hydration and the entrance are allowed to be janky
 
-const SLOW_MS = 20;
-const SLOW_FRAMES = 30;
-const EMA_ALPHA = 0.1;
+let tier: Tier = 2;
+let started = false;
+const listeners = new Set<(next: Tier) => void>();
 
-type Listener = (tier: QualityTier) => void;
-
-let tier: QualityTier = 2;
-let emaMs: number | null = null;
-let slowStreak = 0;
-let measuring = false;
-const listeners = new Set<Listener>();
-
-// gsap passes deltaTime in seconds; the contract talks milliseconds.
-function onTick(_time: number, deltaTimeSeconds: number) {
-  const deltaTime = deltaTimeSeconds * 1000;
-  if (deltaTime <= 0) return;
-  emaMs =
-    emaMs === null
-      ? deltaTime
-      : EMA_ALPHA * deltaTime + (1 - EMA_ALPHA) * emaMs;
-
-  if (emaMs > SLOW_MS) {
-    slowStreak += 1;
-    if (slowStreak >= SLOW_FRAMES && tier > 0) {
-      tier = (tier - 1) as QualityTier;
-      slowStreak = 0;
-      for (const listener of listeners) listener(tier);
-    }
-  } else {
-    slowStreak = 0;
-  }
-}
-
-export function qualityTier(): QualityTier {
+export function getTier(): Tier {
   return tier;
 }
 
-export function onQualityChange(listener: Listener): () => void {
+export function subscribeTier(listener: (next: Tier) => void): () => void {
   listeners.add(listener);
-  if (!measuring) {
-    measuring = true;
-    gsap.ticker.add(onTick);
+  return () => listeners.delete(listener);
+}
+
+function setTier(next: Tier) {
+  if (next === tier) return;
+  tier = next;
+  document.documentElement.dataset.quality = String(tier); // readable from QA and DevTools
+  listeners.forEach((listener) => listener(tier));
+}
+
+// Watches the frame time on the shared ticker and only ever steps down, so a
+// weak phone settles on a lighter tier once instead of flapping between two.
+// `?tier=0|1|2` locks the tier for QA.
+export function startQualityMonitor() {
+  if (started || typeof window === "undefined") return;
+  started = true;
+  // Tells the stylesheet that scripts ran, which switches its no-JS failsafe off.
+  document.documentElement.dataset.motion = "on";
+
+  document.documentElement.dataset.quality = String(tier);
+  const locked = new URLSearchParams(window.location.search).get("tier");
+  if (locked === "0" || locked === "1" || locked === "2") {
+    tier = Number(locked) as Tier;
+    document.documentElement.dataset.quality = String(tier);
+    return;
   }
-  return () => {
-    listeners.delete(listener);
+
+  let last = performance.now();
+  let ema = 16.7;
+  let slow = 0;
+  let warmup = WARMUP_FRAMES;
+
+  const tick = () => {
+    const now = performance.now();
+    const delta = now - last;
+    last = now;
+    if (document.hidden || delta > 250) return; // tab switch or a stall, not load
+    if (warmup > 0) {
+      warmup--;
+      return;
+    }
+    ema = ema * 0.9 + delta * 0.1;
+    slow = ema > SLOW_FRAME_MS ? slow + 1 : Math.max(0, slow - 1);
+    if (slow >= SLOW_FRAMES_TO_DROP) {
+      setTier(Math.max(0, tier - 1) as Tier);
+      ema = 16.7;
+      slow = 0;
+      warmup = 60;
+      if (tier === 0) gsap.ticker.remove(tick);
+    }
   };
+  gsap.ticker.add(tick);
 }

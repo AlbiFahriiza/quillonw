@@ -47,8 +47,6 @@ export const metadata: Metadata = {
     locale: "en_US",
     images: [
       {
-        // Root-relative metadata URLs get the basePath prepended by Next
-        // itself; routing through asset() here would double the prefix.
         url: "/og-image.png",
         width: 1200,
         height: 630,

@@ -6,29 +6,51 @@ import { useGSAP } from "@gsap/react";
 import { ComingSoonMorph } from "@/components/coming-soon-morph";
 import { DonutDemo } from "@/components/donut-demo";
 import { Sprinkles } from "@/components/sprinkles";
-
-function playEntrance() {
-  // Translate-only entrance (rule 2.1 bans opacity). The starting offsets
-  // come from the hero-initial CSS block, which only applies when scripting
-  // is enabled, so the first paint already shows the offset state.
-  const entrance = gsap.timeline({
-    defaults: { ease: "power3.out", duration: 0.85 },
-  });
-  entrance
-    .to('[data-hero="wordmark"]', { y: 0, overwrite: "auto" })
-    .to('[data-hero="headline"]', { y: 0 }, "-=0.6")
-    .to('[data-hero="coming-soon"]', { y: 0 }, "-=0.6");
-}
+import { startQualityMonitor } from "@/lib/quality";
 
 export function Hero() {
   const heroRef = useRef<HTMLElement>(null);
 
   useGSAP(
     () => {
+      startQualityMonitor();
+      const hero = heroRef.current;
+      if (!hero) return;
+      const lines = gsap.utils.toArray<HTMLElement>("[data-hero-line]", hero);
+
+      // The stylesheet hid these for first paint; hand over to GSAP in the same frame.
+      lines.forEach((line) => {
+        line.style.translate = "none";
+      });
+
       gsap
         .matchMedia()
         .add("(prefers-reduced-motion: no-preference)", () => {
-          playEntrance();
+          gsap.fromTo(
+            '[data-hero="wordmark"]',
+            { clipPath: "inset(0 100% 0 0)" },
+            {
+              clipPath: "inset(0 0% 0 0)",
+              duration: 0.8,
+              ease: "power3.inOut",
+              // "none", not clearProps: clearing would hand the element back to the
+              // stylesheet's first-paint clip and hide it again.
+              onComplete: () => {
+                gsap.set('[data-hero="wordmark"]', { clipPath: "none" });
+              },
+            },
+          );
+          gsap.fromTo(
+            lines,
+            { yPercent: 130 },
+            {
+              yPercent: 0,
+              duration: 1,
+              stagger: 0.12,
+              delay: 0.15,
+              ease: "power4.out",
+            },
+          );
         });
     },
     { scope: heroRef },
@@ -38,31 +60,35 @@ export function Hero() {
     <section
       ref={heroRef}
       aria-label="Quillon is coming soon"
-      className="relative flex min-h-svh flex-col items-center justify-start overflow-hidden px-5 pb-12 pt-24 text-center md:justify-center md:px-6 md:pb-16 md:pt-28"
+      className="relative isolate flex min-h-svh flex-col items-center justify-center overflow-hidden px-6 pb-20 pt-28 text-center"
     >
       <Sprinkles />
+
       <p
         data-hero="wordmark"
-        className="hero-initial hero-initial-wordmark pl-[0.5em] font-grotesk text-xs font-medium uppercase tracking-[0.5em] text-ink md:text-base"
+        className="pl-[0.5em] font-grotesk text-sm font-medium uppercase tracking-[0.5em] text-ink md:text-base"
       >
         Quillon
       </p>
 
-      <h1
-        data-hero="headline"
-        className="hero-initial hero-initial-headline mt-3 max-w-5xl font-grotesk text-4xl font-bold leading-[1.05] tracking-tight text-ink sm:text-6xl md:mt-6 md:text-7xl lg:text-8xl"
-      >
-        Code the <span className="marker-highlight">frame.</span>
+      {/* Each line sits in its own mask, so it rises into place instead of fading. */}
+      <h1 className="mt-6 max-w-5xl font-grotesk text-6xl font-bold leading-[1.04] tracking-tight text-ink sm:text-7xl lg:text-8xl">
+        <span className="-mx-4 -mt-2 -mb-4 inline-block overflow-hidden px-4 pb-4 pt-2 align-bottom">
+          <span data-hero-line className="inline-block">
+            Code the
+          </span>
+        </span>{" "}
+        <span className="-mx-4 -mt-2 -mb-4 inline-block overflow-hidden px-4 pb-4 pt-2 align-bottom">
+          <span data-hero-line className="inline-block">
+            <span className="marker-highlight">frame.</span>
+          </span>
+        </span>
       </h1>
 
-      {/* One fixed viewBox: the morphing line can never change width (B5). */}
-      <p
-        data-hero="coming-soon"
-        className="hero-initial hero-initial-coming-soon mt-5 flex w-full items-center justify-center px-2 md:mt-12"
-      >
+      <div className="mt-12 flex w-full justify-center">
         <span className="sr-only">Coming soon</span>
         <ComingSoonMorph />
-      </p>
+      </div>
 
       <DonutDemo />
     </section>

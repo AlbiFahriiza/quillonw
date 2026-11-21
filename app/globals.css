@@ -9,7 +9,6 @@
 
   --font-sans: var(--ff-grotesk), ui-sans-serif, system-ui, sans-serif;
   --font-grotesk: var(--ff-grotesk), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: ui-serif, Georgia, serif;
   --font-mono: var(--ff-spacemono), ui-monospace, "Courier New", monospace;
 }
 
@@ -50,60 +49,83 @@
     background-size: 0.9em 0.3em;
     padding-bottom: 0.16em;
   }
+}
 
-  /* Pre-JS initial states for the hero entrance. Scoped to scripting-enabled
-     so the no-JS (and crawler) view renders fully in place, and neutralised
-     under reduced motion so nothing waits for a tween that never runs. */
-  @media (scripting: enabled) {
-    .hero-initial-wordmark {
-      transform: translateY(2.5rem);
-    }
-
-    .hero-initial-headline {
-      transform: translateY(3rem);
-    }
-
-    .hero-initial-coming-soon {
-      transform: translateY(2rem);
-    }
+/* First-paint state for entrance motion. It lives in CSS, not in a gsap.from that
+   runs after hydration, so nothing flashes visible and then jumps. It only applies
+   when scripting is on and motion is allowed; the components clear it themselves. */
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  [data-header-item] {
+    translate: 0 -9rem;
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .hero-initial-wordmark,
-    .hero-initial-headline,
-    .hero-initial-coming-soon,
-    .header-initial {
-      transform: none;
-    }
+  [data-hero="wordmark"] {
+    clip-path: inset(0 100% 0 0);
   }
-
-  /* Same pre-JS pattern for the fixed header: starts translated up, drops in
-     when JS runs. Without this the header would flash fully visible first. */
-  @media (scripting: enabled) {
-    .header-initial {
-      transform: translateY(-1.75rem);
-    }
+  [data-hero-line] {
+    translate: 0 130%;
   }
-
-  /* Scroll-triggered reveals below the fold: offset and clipped in CSS so
-     the first paint of these sections already matches the animation start. */
-  @media (scripting: enabled) {
-    .reveal-initial-statement {
-      transform: translateY(2.75rem);
-      clip-path: inset(0 0 100% 0);
-    }
-
-    .reveal-initial-frame {
-      transform: translateY(3.5rem);
-      clip-path: inset(0 0 100% 0);
-    }
+  [data-cs-glyph] {
+    translate: 0 162px;
   }
+  [data-reveal="statement"] {
+    translate: 0 110%;
+  }
+}
 
-  @media (prefers-reduced-motion: reduce) {
-    .reveal-initial-statement,
-    .reveal-initial-frame {
-      transform: none;
-      clip-path: none;
-    }
+/* Demo first-paint state: panels hidden, code untyped, SVG pieces parked off screen. */
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  [data-demo-panel] {
+    clip-path: inset(480px -12px -12px -12px);
+  }
+  [data-pre] {
+    translate: 0 480px;
+  }
+  [data-code] [data-line] {
+    --n: 0;
+  }
+  [data-caret] {
+    display: block;
+    animation: caret-blink 1s steps(1) infinite;
+  }
+}
+[data-caret] {
+  display: none;
+}
+@keyframes caret-blink {
+  50% {
+    clip-path: inset(0 0 100% 0);
+  }
+}
+[data-caret] {
+  transform: translate(calc(var(--cx, 0) * 1ch), calc(var(--cl, 0) * 1.7em));
+}
+
+/* Failsafe: if scripts never run (blocked, failed to load), the first-paint states above
+   would hide the page for good. After 4s without the data-motion marker, show everything. */
+@keyframes reveal-failsafe {
+  to {
+    translate: none;
+    clip-path: none;
+  }
+}
+@keyframes lines-failsafe {
+  to {
+    --n: 99;
+  }
+}
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  html:not([data-motion]) :is(
+      [data-header-item],
+      [data-hero="wordmark"],
+      [data-hero-line],
+      [data-cs-glyph],
+      [data-reveal="statement"],
+      [data-demo-panel],
+      [data-pre]
+    ) {
+    animation: reveal-failsafe 0s 4s forwards;
+  }
+  html:not([data-motion]) [data-line] {
+    animation: lines-failsafe 0s 4s forwards;
   }
 }

@@ -3,26 +3,22 @@
 import { useRef } from "react";
 import type { ComponentType, SVGProps } from "react";
 import gsap from "gsap";
+import { MorphSVGPlugin } from "gsap/MorphSVGPlugin";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
-import { MorphSVGPlugin } from "gsap/MorphSVGPlugin";
+import { CodeLines, lineLength } from "@/components/code-lines";
+import type { CodeLine } from "@/components/code-lines";
+import { DonutArt } from "@/components/donut-art";
 import {
   ClapperboardIcon,
   CodeIcon,
   SlidersIcon,
 } from "@/components/icons";
+import { SprocketHoles } from "@/components/sprocket-holes";
+import { CX, CY, DOUGH, FROSTING } from "@/lib/donut-shapes";
+import { getTier } from "@/lib/quality";
 
-gsap.registerPlugin(ScrollTrigger, MorphSVGPlugin);
-
-/**
- * The three-frame strip becomes a three-scene scroll story that keeps
- * telling the donut joke: the code writes the dough, sliders re-frost it,
- * and the render turns it into film frames.
- *
- * Desktop pins the section and scrubs over about three viewport heights;
- * phones keep the normal document flow, each scene scrubbing against its
- * own scroll progress (no pin, no scroll-jacking).
- */
+gsap.registerPlugin(MorphSVGPlugin, ScrollTrigger);
 
 type FrameSpec = {
   number: string;
@@ -37,85 +33,24 @@ const FRAMES: FrameSpec[] = [
   { number: "03", label: "Render cinema", Icon: ClapperboardIcon, chip: "bg-tomato" },
 ];
 
-const SPROCKET_COUNT = 8;
+// One line per scene, typed as the scroll reaches it. At most 34 characters.
+const STORY_LINES: readonly CodeLine[] = [
+  [["k", "const"], ["t", " d = "], ["k", "new"], ["t", " Donut("], ["s", '"fluffy"'], ["t", ");"]],
+  [["t", "d.frosting("], ["s", '"teal"'], ["t", ").sprinkles("], ["n", "9"], ["t", ");"]],
+  [["k", "await"], ["t", " quillon.render(d);"]],
+];
+const STORY_LENGTHS = STORY_LINES.map(lineLength);
 
-// One donut silhouette across all scenes: a ring that opens as a blob
-// (scene 1), keeps both contours so morphs stay matched, and ends as the
-// film-strip curve (scene 3).
-const BLOB =
-  "M100 30 C134 26 164 48 170 78 C176 108 152 136 122 142 C92 148 64 134 52 106 C42 82 50 54 74 40 C84 34 92 31 100 30 Z M100 80 C107 80 113 85 113 92 C113 99 107 105 100 105 C93 105 87 99 87 92 C87 85 93 80 100 80 Z";
-const RING =
-  "M100 26 C140 26 174 58 174 100 C174 142 140 174 100 174 C60 174 26 142 26 100 C26 58 60 26 100 26 Z M100 76 C114 76 124 86 124 100 C124 114 114 124 100 124 C86 124 76 114 76 100 C76 86 86 76 100 76 Z";
-
-function SprocketHoles() {
-  return (
-    <>
-      {Array.from({ length: SPROCKET_COUNT }, (_, index) => (
-        <span
-          key={index}
-          aria-hidden="true"
-          className="h-1.5 w-3 shrink-0 rounded-full bg-ink"
-        />
-      ))}
-    </>
-  );
-}
-
-function SceneDonut({ scene }: { scene: number }) {
-  return (
-    <svg
-      viewBox="0 0 200 200"
-      aria-hidden="true"
-      className="h-28 w-28 md:h-36 md:w-36"
-      data-scene-donut={scene}
-    >
-      <path
-        data-scene-shape
-        d={BLOB}
-        fill={scene === 2 ? "#ff5a4e" : "#ffc93c"}
-        stroke="#1b1b1b"
-        strokeWidth="5"
-      />
-      {scene === 2 && (
-        <g data-scene-sliders aria-hidden="true">
-          <line x1="40" y1="150" x2="160" y2="150" stroke="#1b1b1b" strokeWidth="5" strokeLinecap="round" />
-          <circle data-scene-knob cx="70" cy="150" r="10" fill="#2ec4b6" stroke="#1b1b1b" strokeWidth="4" />
-          <line x1="40" y1="172" x2="160" y2="172" stroke="#1b1b1b" strokeWidth="5" strokeLinecap="round" />
-          <circle data-scene-knob cx="130" cy="172" r="10" fill="#ff5a4e" stroke="#1b1b1b" strokeWidth="4" />
-        </g>
-      )}
-      {scene === 3 && (
-        <g data-scene-film aria-hidden="true">
-          <rect
-            data-scene-frame
-            x="30"
-            y="60"
-            width="140"
-            height="80"
-            rx="8"
-            fill="none"
-            stroke="#1b1b1b"
-            strokeWidth="5"
-            style={{ transform: "scale(0.001)", transformOrigin: "100px 100px" }}
-          />
-          <path
-            data-scene-curve
-            d="M30 140 C60 100 140 100 170 60"
-            fill="none"
-            stroke="#1b1b1b"
-            strokeWidth="5"
-            strokeLinecap="round"
-            style={{ transform: "scale(0.001)", transformOrigin: "100px 100px" }}
-          />
-        </g>
-      )}
-    </svg>
-  );
-}
+const SCENES = 3;
+const PIN_SCROLL_PX = 1800;
+const COLORS = { tomato: "#ff5a4e", teal: "#2ec4b6", cream: "#fff6e5", mustard: "#ffc93c" };
 
 function Frame({ number, label, Icon, chip }: FrameSpec) {
   return (
-    <div className="flex flex-row items-center gap-4 md:flex-col md:items-start md:gap-4">
+    <li
+      data-frame
+      className="flex flex-row items-center gap-4 rounded-2xl border-2 border-ink bg-cream px-4 py-5 md:flex-col md:items-start md:gap-4 md:px-6 md:py-8"
+    >
       <span
         className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 border-ink text-ink md:h-14 md:w-14 ${chip}`}
       >
@@ -129,7 +64,7 @@ function Frame({ number, label, Icon, chip }: FrameSpec) {
           {label}
         </h3>
       </span>
-    </div>
+    </li>
   );
 }
 
@@ -138,164 +73,130 @@ export function WhatIsQuillon() {
 
   useGSAP(
     () => {
-      // Address-bar resizes on phones must not re-trigger refresh jumps;
-      // ignoreMobileResize (verified in the installed ScrollTrigger source)
-      // is exactly that switch.
-      ScrollTrigger.config({ ignoreMobileResize: true });
+      const section = sectionRef.current;
+      if (!section) return;
+      const q = <T extends Element>(selector: string) =>
+        gsap.utils.toArray<T>(selector, section);
+      const one = <T extends Element>(selector: string) => q<T>(selector)[0];
+
+      const statement = one<HTMLElement>('[data-reveal="statement"]');
+      const strip = one<HTMLElement>("[data-story]");
+      const dough = one<SVGPathElement>("[data-dough-path]");
+      const frosting = one<SVGPathElement>("[data-frosting]");
+      const layer = one<SVGGElement>("[data-dough]");
+      const bar = one<SVGGElement>("[data-bar]");
+      const barFill = one<SVGRectElement>("[data-bar-fill]");
+      const stamp = one<SVGGElement>("[data-stamp]");
+      const sprinkles = q<SVGGElement>("[data-sprinkle]");
+      const lines = q<HTMLElement>("[data-line]");
+      const cards = q<HTMLElement>("[data-frame]");
+
+      // The stylesheet parked these for first paint; GSAP owns them from here.
+      statement.style.translate = "none";
+      q<SVGElement>("[data-pre]").forEach((el) => {
+        el.style.translate = "none";
+      });
+
+      // The whole story as one timeline, SCENES units long: scene i covers [i, i + 1].
+      // It is scrubbed by scroll, so every ease is local to its own tween.
+      const buildStory = () => {
+        gsap.set(layer, { scale: 0, svgOrigin: `${CX} ${CY}` });
+        gsap.set(sprinkles, { y: -440 });
+        gsap.set(bar, { y: 90 });
+        gsap.set(barFill, { scaleX: 0, svgOrigin: "26 271" });
+        gsap.set(stamp, { y: -360, svgOrigin: "0 0" });
+        gsap.set(frosting, { fill: COLORS.tomato });
+
+        const tl = gsap.timeline({ defaults: { ease: "none" } });
+        // On a device that is already struggling, shapes switch at scene boundaries
+        // instead of morphing on every scroll frame.
+        const light = getTier() < 2;
+        const reshape = (target: SVGPathElement, shape: string, at: number, duration: number, ease: string) => {
+          if (light) tl.set(target, { attr: { d: shape } }, at + duration);
+          else tl.to(target, { morphSVG: { shape }, duration, ease }, at);
+        };
+        const typed = (scene: number, from: number, span: number) =>
+          tl.fromTo(
+            lines[scene],
+            { "--n": 0 },
+            {
+              "--n": STORY_LENGTHS[scene],
+              duration: span,
+              ease: `steps(${STORY_LENGTHS[scene]})`,
+              immediateRender: false,
+            },
+            from,
+          );
+
+        // 01 Write code: dough pops in, then pours into a ring.
+        typed(0, 0.08, 0.8);
+        tl.to(layer, { scale: 1, duration: 0.5, ease: "back.out(1.7)" }, 0.05);
+        reshape(dough, DOUGH.ring, 0.4, 0.6, "power2.inOut");
+        reshape(frosting, FROSTING.sliver, 0.4, 0.6, "power2.inOut");
+
+        // 02 Edit programmatically: the same donut, changed by a line of code.
+        typed(1, 1.08, 0.8);
+        reshape(frosting, FROSTING.full, 1.05, 0.5, "power2.out");
+        tl.to(frosting, { fill: COLORS.teal, duration: 0.4 }, 1.5);
+        tl.to(sprinkles, { y: 0, duration: 0.5, ease: "bounce.out", stagger: { each: 0.012, from: "random" } }, 1.45);
+        tl.to(frosting, { fill: COLORS.cream, duration: 0.4 }, 1.9);
+
+        // 03 Render cinema: progress bar, then the stamp.
+        typed(2, 2.08, 0.6);
+        tl.to(bar, { y: 0, duration: 0.15, ease: "power3.out" }, 2.05);
+        tl.to(barFill, { scaleX: 1, duration: 0.55 }, 2.15);
+        tl.fromTo(stamp, { y: -360, scale: 1.7 }, { y: 0, scale: 1, duration: 0.15, ease: "power4.in", immediateRender: false }, 2.75);
+
+        // The matching card lights up while its scene is on.
+        cards.forEach((card, index) => {
+          tl.to(card, { backgroundColor: COLORS.mustard, x: 10, duration: 0.1 }, index + 0.02);
+          if (index < SCENES - 1) {
+            tl.to(card, { backgroundColor: COLORS.cream, x: 0, duration: 0.1 }, index + 0.9);
+          }
+        });
+        tl.set({}, {}, SCENES);
+        return tl;
+      };
 
       gsap
         .matchMedia()
+        .add("(prefers-reduced-motion: reduce)", () => {
+          dough.setAttribute("d", DOUGH.ring);
+          frosting.setAttribute("d", FROSTING.full);
+        })
         .add("(prefers-reduced-motion: no-preference)", () => {
-          gsap.to('[data-reveal="statement"]', {
-            y: 0,
-            clipPath: "inset(0 0 0% 0)",
-            duration: 0.8,
-            ease: "power3.out",
-            scrollTrigger: { trigger: sectionRef.current, start: "top 72%" },
-          });
-          gsap.to('[data-reveal="frame"]', {
-            y: 0,
-            clipPath: "inset(0 0 0% 0)",
-            duration: 0,
-            stagger: 0.14,
-            scrollTrigger: {
-              trigger: '[data-reveal="strip"]',
-              start: "top 82%",
+          gsap.fromTo(
+            statement,
+            { yPercent: 110 },
+            {
+              yPercent: 0,
+              duration: 1,
+              ease: "power4.out",
+              scrollTrigger: { trigger: section, start: "top 72%", once: true },
             },
-          });
-
-          // --- Scene stories, desktop: pinned, scrubbed over 3 viewports.
-          // scrub: true (no smoothing) keeps the pinned timeline cheap: the
-          // scroll story measured 49.4fps avg at 6x throttle with a 0.6s
-          // catch-up tween; direct mapping is one transform write per frame.
-          gsap.matchMedia().add("(min-width: 768px)", () => {
-            const tl = gsap.timeline({
-              scrollTrigger: {
-                trigger: '[data-scroll-story]',
-                start: "top top",
-                end: "+=300%",
-                pin: true,
-                scrub: true,
-              },
-            });
-
-            // Scene 1: code writes the dough (blob inflates).
-            tl.fromTo(
-              '[data-scene-donut="1"] [data-scene-shape]',
-              { scale: 0.2, transformOrigin: "50% 50%" },
-              { scale: 1, duration: 1, ease: "back.out(1.6)" },
-            );
-
-            // Scene 2: sliders change frosting colour and sprinkle knob.
-            tl.to(
-              '[data-scene-donut="2"] [data-scene-shape]',
-              { fill: "#2ec4b6", duration: 0.6 },
-              0.2,
-            );
-            tl.fromTo(
-              '[data-scene-donut="2"] [data-scene-knob]',
-              { attr: { cx: 70 } },
-              { attr: { cx: 130 }, duration: 0.5 },
-              0.3,
-            );
-
-            // Scene 3: donut morphs to film strip frames.
-            tl.to(
-              '[data-scene-donut="3"] [data-scene-shape]',
-              { morphSVG: RING, duration: 0.8, ease: "power2.inOut" },
-              1.4,
-            );
-            tl.to(
-              '[data-scene-donut="3"] [data-scene-frame]',
-              { scale: 1, duration: 0.5, ease: "back.out(2)" },
-              1.9,
-            );
-            tl.to(
-              '[data-scene-donut="3"] [data-scene-curve]',
-              { scale: 1, duration: 0.5, ease: "back.out(2)" },
-              2.1,
-            );
-            tl.to({}, { duration: 0.6 });
-
-            return () => {
-              tl.scrollTrigger?.kill();
-              tl.kill();
-            };
-          });
-
-          // --- Scene stories, phones: each scene scrubs its own progress.
-          gsap.matchMedia().add("(max-width: 767px)", () => {
-            const tweens: gsap.core.Tween[] = [];
-            tweens.push(
-              gsap.fromTo(
-                '[data-scene-donut="1"] [data-scene-shape]',
-                { scale: 0.2, transformOrigin: "50% 50%" },
-                {
-                  scale: 1,
-                  ease: "power1.out",
-                  scrollTrigger: {
-                    trigger: '[data-scene-donut="1"]',
-                    start: "top 85%",
-                    end: "top 35%",
-                    scrub: true,
-                  },
-                },
-              ),
-            );
-            tweens.push(
-              gsap.to('[data-scene-donut="2"] [data-scene-shape]', {
-                fill: "#2ec4b6",
-                scrollTrigger: {
-                  trigger: '[data-scene-donut="2"]',
-                  start: "top 85%",
-                  end: "top 35%",
-                  scrub: true,
-                },
-              }),
-            );
-            tweens.push(
-              gsap.to('[data-scene-donut="3"] [data-scene-shape]', {
-                morphSVG: RING,
-                scrollTrigger: {
-                  trigger: '[data-scene-donut="3"]',
-                  start: "top 85%",
-                  end: "top 35%",
-                  scrub: true,
-                },
-              }),
-            );
-            tweens.push(
-              gsap.to('[data-scene-donut="3"] [data-scene-frame]', {
-                scale: 1,
-                scrollTrigger: {
-                  trigger: '[data-scene-donut="3"]',
-                  start: "top 85%",
-                  end: "top 35%",
-                  scrub: true,
-                },
-              }),
-            );
-            tweens.push(
-              gsap.to('[data-scene-donut="3"] [data-scene-curve]', {
-                scale: 1,
-                scrollTrigger: {
-                  trigger: '[data-scene-donut="3"]',
-                  start: "top 85%",
-                  end: "top 35%",
-                  scrub: true,
-                },
-              }),
-            );
-            return () => {
-              for (const t of tweens) {
-                t.scrollTrigger?.kill();
-                t.kill();
-              }
-            };
+          );
+        })
+        // Desktop: pin the strip and let scroll play the three scenes.
+        .add("(min-width: 768px) and (prefers-reduced-motion: no-preference)", () => {
+          ScrollTrigger.create({
+            trigger: strip,
+            start: "center center",
+            end: `+=${PIN_SCROLL_PX}`,
+            pin: true,
+            anticipatePin: 1,
+            scrub: 0.6,
+            animation: buildStory(),
           });
         })
-        .add("(prefers-reduced-motion: reduce)", () => {
-          // Final static states: nothing moves, everything in place.
+        // Phone: no pin, so scrolling never feels hijacked. The scenes still follow scroll.
+        .add("(max-width: 767px) and (prefers-reduced-motion: no-preference)", () => {
+          ScrollTrigger.create({
+            trigger: strip,
+            start: "top 80%",
+            end: "bottom 35%",
+            scrub: 0.6,
+            animation: buildStory(),
+          });
         });
     },
     { scope: sectionRef },
@@ -309,41 +210,47 @@ export function WhatIsQuillon() {
       className="relative px-5 py-20 md:px-8 md:py-28"
     >
       <div className="mx-auto max-w-6xl">
-        <div
-          data-reveal="statement"
-          className="reveal-initial reveal-initial-statement flex flex-col items-center text-center"
-        >
-          <h2
-            id="what-is-quillon-heading"
-            className="rounded-full border-2 border-ink bg-teal px-5 py-1.5 pl-[1.25em] font-mono text-xs font-bold uppercase tracking-[0.25em] text-ink"
+        {/* The statement rises out of its own mask instead of fading in. */}
+        <div className="-mb-3 overflow-hidden pb-3">
+          <div
+            data-reveal="statement"
+            className="flex flex-col items-center text-center"
           >
-            What is Quillon?
-          </h2>
-          <p className="mt-10 max-w-4xl font-grotesk text-3xl font-bold leading-[1.15] tracking-tight text-ink md:text-5xl">
-            Quillon is a{" "}
-            <span className="text-tomato">programmable video studio</span> —
-            where <span className="squiggle-underline">code becomes cinema</span>.
-          </p>
+            <h2
+              id="what-is-quillon-heading"
+              className="rounded-full border-2 border-ink bg-teal px-5 py-1.5 pl-[1.25em] font-mono text-xs font-bold uppercase tracking-[0.25em] text-ink"
+            >
+              What is Quillon?
+            </h2>
+            <p className="mt-10 max-w-4xl font-grotesk text-3xl font-bold leading-[1.15] tracking-tight text-ink md:text-5xl">
+              Quillon is a{" "}
+              <span className="text-tomato">programmable video studio</span> —
+              where <span className="squiggle-underline">code becomes cinema</span>.
+            </p>
+          </div>
         </div>
 
-        {/* Scroll story: each frame pairs with its donut scene. */}
-        <div data-scroll-story data-reveal="strip" className="reveal-initial reveal-initial-statement mt-14 md:mt-20">
+        <div data-story className="mt-14 md:mt-20">
           <div className="rounded-3xl border-[3px] border-ink bg-white p-4 shadow-cartoon md:p-6">
             <div aria-hidden="true" className="flex justify-between px-2 pb-4 md:px-4">
               <SprocketHoles />
             </div>
-            <ol className="grid gap-5 md:grid-cols-3 md:gap-6">
-              {FRAMES.map((frame, index) => (
-                <li
-                  key={frame.number}
-                  data-reveal="frame"
-                  className="reveal-initial reveal-initial-frame flex flex-col gap-4 rounded-2xl border-2 border-ink bg-cream px-4 py-5 md:px-6 md:py-8 [contain:layout_paint]"
+            <div className="grid items-center gap-6 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] md:gap-10 md:px-4">
+              <div className="mx-auto w-full max-w-md">
+                <DonutArt />
+                <div
+                  data-code
+                  className="mt-4 rounded-2xl border-2 border-ink bg-cream px-4 py-3 font-mono text-[clamp(10.5px,3.3vw,14px)] leading-[1.7] text-ink"
                 >
-                  <SceneDonut scene={index + 1} />
-                  <Frame {...frame} />
-                </li>
-              ))}
-            </ol>
+                  <CodeLines lines={STORY_LINES} />
+                </div>
+              </div>
+              <ol className="grid gap-4 md:gap-5">
+                {FRAMES.map((frame) => (
+                  <Frame key={frame.number} {...frame} />
+                ))}
+              </ol>
+            </div>
             <div aria-hidden="true" className="flex justify-between px-2 pt-4 md:px-4">
               <SprocketHoles />
             </div>
